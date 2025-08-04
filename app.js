@@ -42,7 +42,8 @@ function enhanceImage(imageElement) {
   ctx.putImageData(imageData, 0, 0);
 
   // Boost contrast
-  ctx.filter = 'contrast(150%)';
+ ctx.filter = 'blur(0.5px) contrast(125%)';
+  ctx.imageSmoothingEnabled = true;
   ctx.drawImage(canvas, 0, 0);
 
   return canvas.toDataURL();
