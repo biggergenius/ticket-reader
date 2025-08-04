@@ -8,6 +8,11 @@ document.getElementById('scanBtn').addEventListener('click', function () {
   if (!selectedFile) return;
   document.getElementById('status').textContent = "🕵️‍♂️ Reading ticket...";
 
+Tesseract.recognize(enhanceImage(imageElement), 'eng')
+  .then(({ data: { text } }) => {
+    console.log('OCR output:', text);
+  });
+  
   Tesseract.recognize(selectedFile, 'eng', {
     logger: m => console.log(m)
   }).then(({ data: { text } }) => {
