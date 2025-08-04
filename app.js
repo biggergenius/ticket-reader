@@ -2,13 +2,14 @@ let selectedFile;
 
 document.getElementById('ticketInput').addEventListener('change', function (e) {
   selectedFile = e.target.files[0];
-  if (selectedFile) {
-    document.getElementById('status').textContent = "🕵️‍♂️ Reading ticket...";
-    
-    const img = new Image();
-    img.onload = function () {
-      const enhancedDataURL = enhanceImage(img);
+  if (!selectedFile) return;
 
+  document.getElementById('status').textContent = "🧠 Preprocessing with OpenCV...";
+
+  const img = new Image();
+  img.onload = function () {
+    enhanceWithOpenCV(img, function (enhancedDataURL) {
+      document.getElementById('status').textContent = "🔍 Running OCR...";
       Tesseract.recognize(enhancedDataURL, 'eng', {
         logger: m => console.log(m)
       }).then(({ data: { text } }) => {
@@ -18,33 +19,30 @@ document.getElementById('ticketInput').addEventListener('change', function (e) {
         document.getElementById('status').textContent = "❌ Error reading image.";
         console.error(err);
       });
-    };
-    img.src = URL.createObjectURL(selectedFile);
-  }
+    });
+  };
+  img.src = URL.createObjectURL(selectedFile);
 });
 
-function enhanceImage(imageElement) {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-
+function enhanceWithOpenCV(imageElement, callback) {
+  let canvas = document.createElement('canvas');
   canvas.width = imageElement.width;
   canvas.height = imageElement.height;
+  let ctx = canvas.getContext('2d');
   ctx.drawImage(imageElement, 0, 0);
+  
+  let src = cv.imread(canvas); // Read canvas into OpenCV Mat
+  let gray = new cv.Mat();
+  let thresholded = new cv.Mat();
 
-  // Convert to grayscale
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  for (let i = 0; i < imageData.data.length; i += 4) {
-    const avg = (imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2]) / 3;
-    imageData.data[i]     = avg; // red
-    imageData.data[i + 1] = avg; // green
-    imageData.data[i + 2] = avg; // blue
-  }
-  ctx.putImageData(imageData, 0, 0);
+  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY); // Convert to grayscale
+  cv.threshold(gray, thresholded, 120, 255, cv.THRESH_BINARY); // Binarize
 
-  // Boost contrast
- ctx.filter = 'blur(0.5px) contrast(125%)';
-  ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(canvas, 0, 0);
+  cv.imshow(canvas, thresholded); // Display result back to canvas
 
-  return canvas.toDataURL();
+  // Cleanup
+  src.delete(); gray.delete(); thresholded.delete();
+
+  // Return result as DataURL
+  callback(canvas.toDataURL());
 }
