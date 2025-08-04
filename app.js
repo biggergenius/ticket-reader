@@ -1,101 +1,64 @@
-let selectedFile;
+// app.js
 
-document.getElementById('ticketInput').addEventListener('change', function (e) {
-  selectedFile = e.target.files[0];
-  if (!selectedFile) return;
+const cv = require('opencv4nodejs');
+const Tesseract = require('tesseract.js');
+const fs = require('fs');
 
-  document.getElementById('status').textContent = "🧠 Preprocessing with OpenCV...";
+// 📸 Load Image
+const rawImagePath = 'ticket.jpg';
+const raw = cv.imread(rawImagePath);
 
-const img = new Image();
-img.onload = function () {
-  deskewImage(img, function (deskewedDataURL) {
-    document.getElementById('status').textContent = "🔍 Running OCR...";
-    Tesseract.recognize(deskewedDataURL, 'eng', {
-      logger: m => console.log(m)
-    }).then(({ data: { text } }) => {
-      document.getElementById('status').textContent = "✅ Scan complete!";
-      document.getElementById('output').textContent = text;
-    }).catch(err => {
-      document.getElementById('status').textContent = "❌ Error reading image.";
-      console.error(err);
-    });
-  });
-};
-img.src = URL.createObjectURL(selectedFile);
-});
+// 📐 Deskew
+function deskewImage(img) {
+  // Assume basic deskew logic
+  const gray = img.bgrToGray();
+  const edges = gray.canny(50, 150);
+  const lines = edges.houghLinesP(1, Math.PI / 180, 100, 50, 10);
 
-function enhanceWithOpenCV(imageElement, callback) {
-  let canvas = document.createElement('canvas');
-  canvas.width = imageElement.width;
-  canvas.height = imageElement.height;
-  let ctx = canvas.getContext('2d');
-  ctx.drawImage(imageElement, 0, 0);
-  
-  let src = cv.imread(canvas); // Read canvas into OpenCV Mat
-  let gray = new cv.Mat();
-  let thresholded = new cv.Mat();
-
-  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY); // Convert to grayscale
-  cv.threshold(gray, thresholded, 120, 255, cv.THRESH_BINARY); // Binarize
-
-  cv.imshow(canvas, thresholded); // Display result back to canvas
-
-  // Cleanup
-  src.delete(); gray.delete(); thresholded.delete();
-
-  // Return result as DataURL
-  callback(canvas.toDataURL());
-}
-
-function deskewImage(imageElement, callback) {
-  const canvas = document.createElement('canvas');
-  canvas.width = imageElement.width;
-  canvas.height = imageElement.height;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(imageElement, 0, 0);
-
-  // Read image into OpenCV Mat
-  let src = cv.imread(canvas);
-  let gray = new cv.Mat();
-  let binary = new cv.Mat();
-  let rotated = new cv.Mat();
-
-  // Convert to grayscale and threshold
-  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-  cv.threshold(gray, binary, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
-
-  // Invert colors (black background, white text)
-  cv.bitwise_not(binary, binary);
-
-  // Find contours
-  let contours = new cv.MatVector();
-  let hierarchy = new cv.Mat();
-  cv.findContours(binary, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
-
-  // Get largest contour and minimum rotated rectangle
-  let maxArea = 0;
-  let largestContour;
-  for (let i = 0; i < contours.size(); i++) {
-    const cnt = contours.get(i);
-    const area = cv.contourArea(cnt);
-    if (area > maxArea) {
-      maxArea = area;
-      largestContour = cnt;
-    }
+  let angle = 0;
+  if (lines.length > 0) {
+    const [x1, y1, x2, y2] = lines[0].getPoints()[0];
+    angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
   }
 
-  const rect = cv.minAreaRect(largestContour);
-  const angle = rect.angle;
+  const center = new cv.Point2(img.cols / 2, img.rows / 2);
+  const rotationMatrix = cv.getRotationMatrix2D(center, angle, 1);
+  return img.warpAffine(rotationMatrix, new cv.Size(img.cols, img.rows));
+}
 
-  // Calculate rotation matrix and apply deskew
-  const center = new cv.Point(src.cols / 2, src.rows / 2);
-  const rotMat = cv.getRotationMatrix2D(center, angle, 1);
-  cv.warpAffine(src, rotated, rotMat, new cv.Size(src.cols, src.rows), cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
+const deskewed = deskewImage(raw);
+cv.imwrite('deskewed.jpg', deskewed); // Save deskewed image
 
-  // Show result on canvas and cleanup
-  cv.imshow(canvas, rotated);
-  src.delete(); gray.delete(); binary.delete(); rotated.delete();
-  contours.delete(); hierarchy.delete();
+// ✨ Enhance
+function enhanceImage(img) {
+  const contrast = img.convertTo(cv.CV_8U, 1.2, 15); // Contrast + Brightness
+  const sharpenKernel = new cv.Mat([
+    [0, -1, 0],
+    [-1, 5, -1],
+    [0, -1, 0]
+  ], cv.CV_32F);
+  return contrast.filter2D(-1, sharpenKernel);
+}
 
-  callback(canvas.toDataURL());
+const enhanced = enhanceImage(deskewed);
+cv.imwrite('enhanced_preview.jpg', enhanced); // 🔍 Preview before OCR
+
+// 🔍 OCR
+Tesseract.recognize('enhanced_preview.jpg', 'eng')
+  .then(({ data: { text } }) => {
+    console.log('🎯 Raw OCR Output:\n', text);
+    const cleaned = postProcessText(text);
+    console.log('🧹 Cleaned Text:\n', cleaned);
+  })
+  .catch(err => console.error('OCR error:', err));
+
+// 🧹 Post-processing
+function postProcessText(text) {
+  return text
+    .replace(/Sinale/g, 'Single')
+    .replace(/Yalid/g, 'Valid')
+    .replace(/froa/g, 'from')
+    .replace(/Semior/g, 'Senior')
+    // Add more tweaks as needed
+    .trim();
 }
