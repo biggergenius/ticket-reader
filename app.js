@@ -1,23 +1,21 @@
-// app.js
-
 const cv = require('opencv4nodejs');
 const Tesseract = require('tesseract.js');
-const fs = require('fs');
 
-// 📸 Load Image
-const rawImagePath = 'ticket.jpg';
-const raw = cv.imread(rawImagePath);
+// === 🧾 Config ===
+const imagePath = 'ticket.jpg';
+const enhancedPath = 'enhanced_preview.jpg';
+const boxedPath = 'text_zones_preview.jpg';
 
-// 📐 Deskew
+// === 📐 Deskewing ===
 function deskewImage(img) {
-  // Assume basic deskew logic
   const gray = img.bgrToGray();
   const edges = gray.canny(50, 150);
   const lines = edges.houghLinesP(1, Math.PI / 180, 100, 50, 10);
 
   let angle = 0;
   if (lines.length > 0) {
-    const [x1, y1, x2, y2] = lines[0].getPoints()[0];
+    const points = lines[0].getPoints();
+    const [x1, y1, x2, y2] = [points[0].x, points[0].y, points[1].x, points[1].y];
     angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
   }
 
@@ -26,12 +24,9 @@ function deskewImage(img) {
   return img.warpAffine(rotationMatrix, new cv.Size(img.cols, img.rows));
 }
 
-const deskewed = deskewImage(raw);
-cv.imwrite('deskewed.jpg', deskewed); // Save deskewed image
-
-// ✨ Enhance
+// === ✨ Enhancement ===
 function enhanceImage(img) {
-  const contrast = img.convertTo(cv.CV_8U, 1.2, 15); // Contrast + Brightness
+  const contrast = img.convertTo(cv.CV_8U, 1.2, 15); // brightness + contrast boost
   const sharpenKernel = new cv.Mat([
     [0, -1, 0],
     [-1, 5, -1],
@@ -40,31 +35,7 @@ function enhanceImage(img) {
   return contrast.filter2D(-1, sharpenKernel);
 }
 
-const enhanced = enhanceImage(deskewed);
-
-// 🔍 Draw boxes to preview text zones
-drawBoundingBoxes(enhanced.copy(), 'text_zones_preview.jpg');
-
-// 🔍 OCR
-Tesseract.recognize('enhanced_preview.jpg', 'eng')
-  .then(({ data: { text } }) => {
-    console.log('🎯 Raw OCR Output:\n', text);
-    const cleaned = postProcessText(text);
-    console.log('🧹 Cleaned Text:\n', cleaned);
-  })
-  .catch(err => console.error('OCR error:', err));
-
-// 🧹 Post-processing
-function postProcessText(text) {
-  return text
-    .replace(/Sinale/g, 'Single')
-    .replace(/Yalid/g, 'Valid')
-    .replace(/froa/g, 'from')
-    .replace(/Semior/g, 'Senior')
-    // Add more tweaks as needed
-    .trim();
-}
-
+// === 🟩 Bounding Boxes Preview ===
 function drawBoundingBoxes(img, outputPath) {
   const gray = img.bgrToGray();
   const thresh = gray.threshold(120, 255, cv.THRESH_BINARY_INV);
@@ -82,3 +53,37 @@ function drawBoundingBoxes(img, outputPath) {
 
   cv.imwrite(outputPath, img);
 }
+
+// === 🧹 OCR Cleanup ===
+function postProcessText(text) {
+  return text
+    .replace(/Sinale/g, 'Single')
+    .replace(/Yalid/g, 'Valid')
+    .replace(/froa/g, 'from')
+    .replace(/Semior/g, 'Senior')
+    .replace(/et s Date of travel/g, 'Date of Travel')
+    // Add other frequent fixes here
+    .trim();
+}
+
+// === 🚀 Main Pipeline ===
+function processTicket(imagePath) {
+  const raw = cv.imread(imagePath);
+  const deskewed = deskewImage(raw);
+  const enhanced = enhanceImage(deskewed);
+
+  cv.imwrite(enhancedPath, enhanced);
+  drawBoundingBoxes(enhanced.copy(), boxedPath);
+
+  Tesseract.recognize(enhancedPath, 'eng')
+    .then(({ data: { text } }) => {
+      console.log('\n🎯 Raw OCR Output:\n');
+      console.log(text);
+      console.log('\n🧹 Cleaned Text:\n');
+      console.log(postProcessText(text));
+    })
+    .catch(err => console.error('OCR error:', err));
+}
+
+// 🏁 Go!
+processTicket(imagePath);
