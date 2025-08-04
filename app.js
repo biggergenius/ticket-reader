@@ -1,6 +1,21 @@
 const cv = require('opencv4nodejs');
 const Tesseract = require('tesseract.js');
 
+const express = require('express');
+const multer = require('multer');
+
+const app = express();
+const upload = multer({ dest: 'uploads/' });
+
+app.post('/upload', upload.single('ticket'), (req, res) => {
+  const uploadedPath = req.file.path;
+  processTicket(uploadedPath);
+  res.send('Processing started!');
+});
+
+app.listen(3000, () => console.log('🎯 Ready at http://localhost:3000'));
+
+
 // === 🧾 Config ===
 const imagePath = 'ticket.jpg';
 const enhancedPath = 'enhanced_preview.jpg';
