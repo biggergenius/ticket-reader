@@ -41,7 +41,9 @@ function enhanceImage(img) {
 }
 
 const enhanced = enhanceImage(deskewed);
-cv.imwrite('enhanced_preview.jpg', enhanced); // 🔍 Preview before OCR
+
+// 🔍 Draw boxes to preview text zones
+drawBoundingBoxes(enhanced.copy(), 'text_zones_preview.jpg');
 
 // 🔍 OCR
 Tesseract.recognize('enhanced_preview.jpg', 'eng')
@@ -61,4 +63,22 @@ function postProcessText(text) {
     .replace(/Semior/g, 'Senior')
     // Add more tweaks as needed
     .trim();
+}
+
+function drawBoundingBoxes(img, outputPath) {
+  const gray = img.bgrToGray();
+  const thresh = gray.threshold(120, 255, cv.THRESH_BINARY_INV);
+  const contours = thresh.findContours(cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+  contours.forEach(contour => {
+    const rect = contour.boundingRect();
+    img.drawRectangle(
+      new cv.Point2(rect.x, rect.y),
+      new cv.Point2(rect.x + rect.width, rect.y + rect.height),
+      new cv.Vec(0, 255, 0),
+      2
+    );
+  });
+
+  cv.imwrite(outputPath, img);
 }
