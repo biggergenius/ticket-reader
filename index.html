@@ -1,23 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
-<script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
-<script>
-  function onOpenCvReady() {
-    console.log("OpenCV.js is ready to roll!");
-  }
-</script>
-  <head>
-  <meta charset="UTF-8">
-  <title>Reader</title>
-  <link rel="stylesheet" href="style.css">
+<head>
+  <meta charset="UTF-8" />
+  <title>Train Ticket Info</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <h1>Reader</h1>
-  <input type="file" id="ticketInput" accept="image/*">
-<button id="scanBtn">Scan Ticket</button>
-  <p id="status">Select a ticket image to scan...</p>
-  <div id="output"></div>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
-  <script src="app.js"></script>
+  <h1>🎟️ Enter Ticket Information</h1>
+  <form action="/submit" method="POST">
+    <label for="travelDate">Date of Travel</label>
+    <input type="date" id="travelDate" name="travelDate" required />
+
+    <label for="origin">Origin Station</label>
+    <input type="text" id="origin" name="origin" placeholder="e.g. Market Harborough" required />
+
+    <label for="destination">Destination Station</label>
+    <input type="text" id="destination" name="destination" placeholder="e.g. Leicester" required />
+
+    <label for="ticketType">Type of Ticket</label>
+    <select id="ticketType" name="ticketType" required>
+      <option value="">-- Please choose an option --</option>
+      <option value="anytime_day_return">Anytime Day Return</option>
+      <option value="anytime_single">Anytime Single</option>
+      <option value="off_peak_return">Off-Peak Return</option>
+      <option value="off_peak_single">Off-Peak Single</option>
+      <option value="super_off_peak_return">Super Off-Peak Return</option>
+    </select>
+
+    <button type="submit">Submit Ticket Info</button>
+  </form>
 </body>
 </html>
