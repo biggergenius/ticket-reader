@@ -1,20 +1,31 @@
-const img = new Image();
-img.onload = function () {
-  const enhancedDataURL = enhanceImage(img);
+let selectedFile;
 
-  Tesseract.recognize(enhancedDataURL, 'eng', {
-    logger: m => console.log(m)
-  }).then(({ data: { text } }) => {
-    document.getElementById('status').textContent = "✅ Scan complete!";
-    document.getElementById('output').textContent = text;
-  }).catch(err => {
-    document.getElementById('status').textContent = "❌ Error reading image.";
-    console.error(err);
-  });
-};
+document.getElementById('ticketInput').addEventListener('change', function (e) {
+  selectedFile = e.target.files[0];
+});
 
-img.src = URL.createObjectURL(selectedFile);
+document.getElementById('scanBtn').addEventListener('click', function () {
+  if (!selectedFile) return;
 
+  document.getElementById('status').textContent = "🕵️‍♂️ Reading ticket...";
+
+  const img = new Image();
+  img.onload = function () {
+    const enhancedDataURL = enhanceImage(img);
+
+    Tesseract.recognize(enhancedDataURL, 'eng', {
+      logger: m => console.log(m)
+    }).then(({ data: { text } }) => {
+      document.getElementById('status').textContent = "✅ Scan complete!";
+      document.getElementById('output').textContent = text;
+    }).catch(err => {
+      document.getElementById('status').textContent = "❌ Error reading image.";
+      console.error(err);
+    });
+  };
+
+  img.src = URL.createObjectURL(selectedFile);
+});
 
 function enhanceImage(imageElement) {
   const canvas = document.createElement('canvas');
@@ -32,10 +43,9 @@ function enhanceImage(imageElement) {
     imageData.data[i + 1] = avg; // green
     imageData.data[i + 2] = avg; // blue
   }
-
   ctx.putImageData(imageData, 0, 0);
 
-  // Boost contrast (simple curve-based enhancement)
+  // Boost contrast
   ctx.filter = 'contrast(150%)';
   ctx.drawImage(canvas, 0, 0);
 
