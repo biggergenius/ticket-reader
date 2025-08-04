@@ -1,19 +1,32 @@
 body {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  padding: 30px;
-  background: #f4f4f4;
+  font-family: sans-serif;
+  margin: 2em;
+  max-width: 600px;
 }
 
-input[type="file"] {
-  margin-top: 20px;
+label {
+  display: block;
+  margin-top: 1em;
+  font-weight: bold;
 }
 
-#output {
-  margin-top: 30px;
-  white-space: pre-wrap;
-  background: #fff;
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.1);
+input,
+select {
+  width: 100%;
+  padding: 0.5em;
+  font-size: 1em;
+}
+
+button {
+  margin-top: 2em;
+  padding: 0.7em 1.5em;
+  font-size: 1em;
+  background-color: #2d7dd2;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #1e5ca9;
 }
